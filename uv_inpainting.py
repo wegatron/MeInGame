@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
+import ipdb
 from pytorch3d.ops.points_alignment import corresponding_points_alignment
 from pytorch3d.renderer import (MeshRasterizer, OpenGLPerspectiveCameras,
                                 RasterizationSettings, look_at_view_transform)
@@ -235,7 +236,7 @@ class UVInpainting():
     return gen_uvmaps.cpu(), im_merged.cpu()
 
   def init_test(self):
-    self.segmenter = Segment(self.device)
+    #self.segmenter = Segment(self.device)
 
     up_line = 100
     bt_line = 80
@@ -292,7 +293,9 @@ class UVInpainting():
                                 np.float32)[None]
 
     images = self.to_tensor(image[None])
-    segments = self.segmenter.segment_torch(images)
+    ipdb.set_trace()
+    #segments = self.segmenter.segment_torch(images)
+    segments = 1
     segments = center_crop(segments, images.shape[1])
     image_segment = torch.cat([images, segments[..., None]], dim=-1)
     image_segment = image_segment.permute(0, 3, 1, 2)
