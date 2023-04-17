@@ -7,7 +7,6 @@ import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
-import ipdb
 from pytorch3d.ops.points_alignment import corresponding_points_alignment
 from pytorch3d.renderer import (MeshRasterizer, OpenGLPerspectiveCameras,
                                 RasterizationSettings, look_at_view_transform)
@@ -27,6 +26,11 @@ from lib.image_cropper import ImageCropper
 from lib.rbf import Shape_Transfer
 from lib.uv_creator import UVCreator
 from models import InpaintingModel
+import matplotlib.pyplot as plt
+
+import sys
+sys.path.insert(0, 'face-parsing')
+from test import Parser
 
 
 class UVInpainting():
@@ -237,6 +241,7 @@ class UVInpainting():
 
   def init_test(self):
     #self.segmenter = Segment(self.device)
+    self.segmenter = Parser('data/models/79999_iter.pth')
 
     up_line = 100
     bt_line = 80
@@ -293,10 +298,13 @@ class UVInpainting():
                                 np.float32)[None]
 
     images = self.to_tensor(image[None])
-    ipdb.set_trace()
-    #segments = self.segmenter.segment_torch(images)
-    segments = 1
-    segments = center_crop(segments, images.shape[1])
+    segments = self.segmenter.parse2(images).type(torch.float32) # [1, 512, 512, 1]
+    # for debug
+    plt.imsave('zsw_result.png', segments[0, :, :].numpy(), cmap='tab20b')
+
+    # segments = self.segmenter.segment_torch(images)
+    # images.shape = [1, 512, 512, 3]
+    #segments = center_crop(segments, images.shape[1])
     image_segment = torch.cat([images, segments[..., None]], dim=-1)
     image_segment = image_segment.permute(0, 3, 1, 2)
 
@@ -326,7 +334,7 @@ class UVInpainting():
     nsh_trans_vert = transformer.transform_points(nsh_face_vert[None])
 
     nsh_shift_vert = nsh_trans_vert[0] - self.to_tensor([[0, 0, 10]])
-    image_segment = torch.flip(image_segment, (3,)).type(torch.float32)
+    image_segment = torch.flip(image_segment, (3,)).type(torch.float32) # y flip?
 
     nsh_trans_mesh = Meshes(nsh_trans_vert,
                             self.nsh_face_tris[face_model][None])
@@ -351,7 +359,7 @@ class UVInpainting():
     images = F.interpolate(images, size=self.config.im_size, mode='bilinear',
                            align_corners=False)
     segments = F.interpolate(segments[:, None], size=self.config.im_size,
-                             mode='nearest')
+                              mode='nearest')
     images = torch.cat([images, segments], dim=1)
     uvmaps = uvmap[None].permute(0, 3, 1, 2)
 

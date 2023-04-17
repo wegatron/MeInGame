@@ -38,9 +38,9 @@ class Dataset(torch.utils.data.Dataset):
     self.nose_shadow_mask = self.load_mask(
         'data/uv_param/masks/nose_shadow_mask.png')
     skin_mask = self.load_mask('data/uv_param/masks/skin_mask.png')
-    self.temp_skin_mean = np.mean(self.temp_uv[skin_mask.astype(np.bool)],
+    self.temp_skin_mean = np.mean(self.temp_uv[skin_mask.astype(bool)],
                                   axis=0)
-    self.temp_lip_mean = np.mean(self.temp_uv[self.lip_mask.astype(np.bool)],
+    self.temp_lip_mean = np.mean(self.temp_uv[self.lip_mask.astype(bool)],
                                  axis=0)
     self.skin_mask = skin_mask + brow_mask + ear_mask + eye_mask
     self.blur_skin_mask = cv2.GaussianBlur(self.skin_mask.astype(
@@ -163,7 +163,7 @@ class Dataset(torch.utils.data.Dataset):
     mask_for_seam[-2, 1] = 255
     mask_for_seam[-2, -2] = 255
 
-    uv_mean = np.mean(uvmap[uv_seg[..., 1].astype(np.bool), :3],
+    uv_mean = np.mean(uvmap[uv_seg[..., 1].astype(bool), :3],
                       axis=0).astype(np.float32)
     temp_uv = self.temp_uv - self.temp_skin_mean + uv_mean
     temp_uv = temp_uv * self.blur_skin_mask + self.temp_uv * (
@@ -175,7 +175,7 @@ class Dataset(torch.utils.data.Dataset):
 
     if not np.any(lip_mask):
       lip_mask = self.lip_mask
-    lip_mean = np.mean(uvmap[lip_mask.astype(np.bool), :3],
+    lip_mean = np.mean(uvmap[lip_mask.astype(bool), :3],
                        axis=0).astype(np.float32)
     lip_uv = self.temp_uv.astype(np.int32)
     lip_uv += np.round(lip_mean - self.temp_lip_mean).astype(np.int32)
