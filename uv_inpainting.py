@@ -298,9 +298,13 @@ class UVInpainting():
                                 np.float32)[None]
 
     images = self.to_tensor(image[None])
+    #segments = self.segmenter.segment_torch(images)
     segments = self.segmenter.parse2(images).type(torch.float32) # [1, 512, 512, 1]
+    # images append alpha channel
+    #images = torch.cat([images, 255 * torch.ones((1, 512, 512, 1), dtype=torch.float32)], dim=-1)
     # for debug
-    plt.imsave('zsw_result.png', segments[0, :, :].numpy(), cmap='tab20b')
+    plt.imsave('zsw_segments.png', segments[0, :, :].numpy(), cmap='tab20b')
+    #plt.imshow(segments[0, :, :].numpy(), cmap='tab20b')
 
     # segments = self.segmenter.segment_torch(images)
     # images.shape = [1, 512, 512, 3]
@@ -314,13 +318,13 @@ class UVInpainting():
 
     #! using torch from now on -----------------------------
     bfm_vert = self.to_tensor(bfm_vert)
-    nsh_vert = self.transfers[face_model].transfer_shape_torch(bfm_vert)
+    nsh_vert = self.transfers[face_model].transfer_shape_torch(bfm_vert) # transfer to target face model vertex
     nsh_neu_vert = None
     nsh_neu_vert = self.transfers[face_model].transfer_shape_torch(bfm_neu_vert)
-    nsh_face_vert = nsh_vert[self.uv_creators[face_model].nsh_face_start_idx:]
+    nsh_face_vert = nsh_vert[self.uv_creators[face_model].nsh_face_start_idx:] # remove eye
 
     coeff = self.to_tensor(coeff[None])
-    _, _, _, angles, _, translation = utils.split_bfm09_coeff(coeff)
+    _, _, _, angles, _, translation = utils.split_bfm09_coeff(coeff) # get rotation and translation from coeff which is predicted by 3DMM
     # angle = (angle / 180.0 * math.pi) if degrees else angle
     transformer = Transform3d(device=self.device)
     transformer = transformer.rotate_axis_angle(angles[:, 0], self.rot_order[0],
@@ -333,8 +337,9 @@ class UVInpainting():
 
     nsh_trans_vert = transformer.transform_points(nsh_face_vert[None])
 
+    # post process uvmap, apply segment and visibility mask, apply fusion
     nsh_shift_vert = nsh_trans_vert[0] - self.to_tensor([[0, 0, 10]])
-    image_segment = torch.flip(image_segment, (3,)).type(torch.float32) # y flip?
+    image_segment = torch.flip(image_segment, (3,)).type(torch.float32)
 
     nsh_trans_mesh = Meshes(nsh_trans_vert,
                             self.nsh_face_tris[face_model][None])
@@ -350,6 +355,10 @@ class UVInpainting():
     uvmap = self.uv_creators[face_model].create_nsh_uv_torch(
         nsh_shift_vert_alpha, image_segment, self.config.uv_size)
 
+    # for debug
+    # plt.imsave('zsw_uvmap.png', uvmap[:, :, 0:3].cpu().numpy()/255)
+    # plt.imsave('zsw_uvmap_seg.png', uvmap[:, :, 3].numpy(), cmap='tab20b')
+    # plt.imsave('zsw_uvmap_visible.png', uvmap[:, :, 4].numpy())
     uvmap[..., 3] = uvmap[..., 3] + uvmap[..., 4] * 128
     uvmap = uvmap[..., :4].cpu().numpy()
     uvmap = self.test_dataset.process_uvmap(uvmap.astype(np.uint8),

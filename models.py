@@ -392,7 +392,13 @@ class InpaintingModel(nn.Module):
     uvmaps_flip = torch.flip(uvmaps_alpha, (3,))
     uvmaps_input = torch.cat([uvmaps_alpha, uvmaps_flip], dim=1)
 
-    gen_uvmaps, light_params = self.generator(images, uvmaps_input)
+    # plt.imsave('zsw_img_debug.png', ((images[0].permute(1,2,0)+1)*0.5).numpy())
+    # plt.imsave('zsw_img_uv.png', ((uvmaps_alpha[0].permute(1,2,0)+1)*0.5)[:, :, 0:3].numpy())
+    gen_uvmaps, light_params = self.generator(images, uvmaps_input)###failed here
+    #debug
+    # a = gen_uvmaps[0].permute(1,2,0).clone().detach().cpu().numpy()
+    # import matplotlib.pyplot as plt
+    # plt.imsave('zsw_uv_before.png', a)
     self.imsave('tmp/train/uv_before.png', gen_uvmaps[0, :3])
 
     if fix_uv:
